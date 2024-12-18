@@ -1,0 +1,363 @@
+
+---
+title: "Predicting Max Attack for Arknights Operators"
+author: "Chuyu Zhuang"
+date: "2024-09-15"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: show
+  pdf_document:
+    toc: true
+---
+
+# Introduction
+···
+## Dataset Description
+···
+## Research Questions
+···
+# Exploratory Data Analysis
+···
+# Data Splitting and Cross Validation
+···
+# Model Fitting and Results
+···
+## Linear Regression
+...
+## Lasso Regression
+...
+## Random Forest
+···
+# Model Selection
+...
+# Testing Model
+···
+## Linear Regression Coefficients
+...
+## Lasso Regression Coefficients
+...
+## Random Forest Variable Importance
+···
+# Conclusion
+···
+
+# 1. Introduction
+This is a model that predicts the maximum attack power of arknights operators.
+
+## What is Arknights?
+"Arknights" is a strategy tower defense mobile game developed by Hypergryph Network, and it is also the first game developed by Hypergryph Network.You can think of it as a anime version of Plants vs. Zombies, except that the plants here are employees working in your company, and the one who tells you to work is not Crazy Dave but a green old lynx who likes to tell riddles.
+```{r, echo=FALSE, out.width="20%",fig.cap="old lynx"}
+knitr::include_graphics("kaltsit.png")
+```
+
+## What are we doing?
+This project focuses on predicting the **max attack** of new operators based on existing data, particularly by linking the operator's class, stars, and Initial deployment cost with their maximum attack.
+
+## Why?
+Like many gacha games, Arknights regularly releases new characters (referred to as operators in the game). In the past, players mostly decided whether to pull for a character based on the quality of their artwork or their portrayal in the storyline. However, as the game has continued to update and increase in difficulty, players have gradually started to decide whether to pull for new operators based on their strength.
+
+# 2. Exploratory Data Analysis
+
+First, we will load all of our packages and the raw data, followed by performing exploratory analysis to understand the relationships between key variables and the response variable, **max attack**.
+```{r,message = FALSE}
+# Load necessary libraries
+library(ggplot2)
+library(readr)
+library(dplyr)
+library(car)
+library(MASS)
+library(caret)
+library(e1071)
+library(xgboost)
+library(rsample)
+```
+```{r}
+# Load the dataset
+data <- read_csv("data.csv")
+
+# Display first few rows of the dataset
+head(data)
+```
+## Variable Selection 
+Let’s mess around with the data a little bit to see what we’re currently working with
+```{r}
+dim(data)
+```
+We can see that the entire data has 235 rows and 63 columns, which means there are 235 operators and 63 columns of variables. However, from the data, variables such as faction, tags, trait, availability, icon, description, phrase, file_no and other game-related variables are insignificant to the analysis of the maximum attack power of operators (after all, in this game, even if you only hold a water gun in the plot, you can become a super powerful operator in terms of strength).So we can ignore these irrelevant variables.
+
+Some people may notice that there is a variable called branch after class. This is a category created by the game to subdivide different operators in the same class. Let's see how many branches there are in total.
+```{r}
+distinct_count <- data %>%
+  summarise(n_distinct = n_distinct(branch))
+
+print(distinct_count)
+```
+There are 253 operators in total but there are 53 branches, which means that each branch has only 4-5 operators on average. In actual situations, some branches only have 2-3 operators. For this reason, we can also ignore this variable and focus on the class variable.
+
+Similarly, since our goal is to focus on the maximum attack power of the operator, something like base_hp,elite_1_hp,elite_2_hp,max_hp,trust_hp,base_atk,elite_1_atk,elite_2_atk,trust_atk,base_def,elite_1_def,elite_2_def,max_def,trust_def,base_res,elite_1_res,elite_2_res,max_res,base_redeploy,elite_1_redeploy,elite_2_redeploy,max_redeploy,base_dp_cost,e lite_1_dp_cost,elite_2_dp_cost,max_dp_cost,base_block,elite_1_block,elite_2_block,max_block,base_interval,elite_1_interval,elite_2_interval,max_interval,images,experience,place_of_birth,date_of_birth,race,infection_status,strength,tactical_acumen,combat_skill,arts_ada ptability variables can be omitted
+
+Now, let’s filter out all those unwanted variables and our dataset will be ready for further tidying
+```{r}
+data <- data %>%
+  dplyr::select("name","class", "stars", "position", "max_atk")
+
+```
+
+### Missing data review and cleaning
+Next, let’s see if there is any missing data.
+```{r,warning=FALSE}
+# View non-numeric max_atk data
+non_numeric_values <- data[is.na(as.numeric(as.character(data$max_atk))), ]
+
+# Print rows with non-numeric max_atk (process as needed)
+print(non_numeric_values)
+```
+We can see that operators below 3 stars do not have the highest attack power, Because they cannot be upgraded to Elite Level 2, we need to clear them as missing data
+```{r, warning=FALSE}
+# Force max_atk to numeric and process NAs
+data$max_atk <- as.numeric(as.character(data$max_atk))
+
+# Remove rows with NA values
+data_clean <- data[!is.na(data$max_atk), ]
+
+print(data_clean)
+```
+### Univariate Analysis: Distribution of Max Attack
+First, let's look at the distribution of maximum attack power.
+```{r}
+# Plotting the distribution of max attack
+ggplot(data_clean, aes(x = max_atk)) +
+  geom_histogram(binwidth = 50, fill = "blue", color = "white") +
+  labs(title = "Distribution of Base Attack", x = "Base Attack", y = "Count")
+```
+
+#### What can we find?
+- The distribution of max attack shows that the maximum attack power of 550 operators is the most, with fewer operators having extremely high or low values.
+
+### Bivariate Analysis: Relationship Between Predictors and Max Attack
+Next, let's look at the relationship between the star and position and the maximum attack power.
+```{r}
+# Plotting relationships between class, stars, and max attack
+ggplot(data_clean, aes(x = class, y = max_atk, fill = stars)) + 
+  geom_boxplot() + 
+  ggtitle("Max Attack Distribution by Class and stars")
+
+# Plotting relationships between class, positions, and max attack
+ggplot(data_clean, aes(x = stars, y = max_atk, color = position)) +
+  geom_boxplot() +
+  labs(title = "Max Attack by Stars and Position", x = "Stars", y = "Max Attack") +
+  theme_minimal()
+```
+
+#### What can we find?
+- Operators with higher stars and certain classes tend to have higher max attack values, as shown by the spread in the box plots.
+
+- Regardless of the star level, the maximum value of the ranged attack power is higher than the maximum value of the melee, but the minimum value is lower than the minimum value of the melee.
+
+# 3. Data Splitting and Cross Validation
+
+The first step we must take before fitting any model is to split our data into a training set and a test set. The training set will be used to do just that: train our model. The test set acts as a test because our model will not be trained using this data. Therefore, once we fit what we consider to be the "best" model (usually based on the lowest RMSE, or Root Mean Squared Error of regression) to our test set, we will see how it truly performs on new data. By splitting our data into a test set and a training set, we can avoid overfitting because the model is not learning using all of the available data. The split that I chose is a 70/30 split, meaning that 70% of the data will go into the training set and 30% of the data will go into the test set. This way, the majority of our data is used to train the model; however, we still have enough data to test the model. Additionally, the split is stratified based on the outcome variable, max_atk, to ensure that the max_atk distributions for the training and test data are equal.
+
+```{r}
+# Data Splitting
+set.seed(123)
+data_split <- initial_split(data_clean, prop = 0.7, strata = max_atk)
+train <- training(data_split)
+test <- testing(data_split)
+
+# Define cross validation controls
+ctrl <- trainControl(method = "cv", number = 10)
+```
+
+check the data split correct
+```{r}
+nrow(train)/nrow(data_clean)
+nrow(test)/nrow(train)
+```
+The training set has about 70% of the data and the testing set has about 30% of the data. So, the data was split correctly between the training and testing sets.
+
+# 4. Model Fitting and Results
+
+We will now build several machine learning models to predict the **max attack** of new operators.
+
+
+### Model 1: linear regression model
+
+```{r}
+# Fit a linear regression model using class, stars, and Initial deployment cost as predictors
+model_lm <- train(max_atk ~ class + stars + position, 
+                  data = train, 
+                  method = "lm", 
+                  trControl = ctrl)
+
+# Summary of the linear model
+summary(model_lm$finalModel)
+
+```
+
+### Model 2: Lasso regression
+
+```{r}
+# Train Lasso regression model with the adjusted predictors
+model_lasso <- train(max_atk ~ class + stars + position,
+                     data = train,
+                     method = "glmnet",
+                     trControl = ctrl,
+                     tuneLength = 5)
+
+# Print Lasso model summary
+print(model_lasso)
+
+```
+
+### Model 3: Random forest model
+```{r}
+# Train Lasso regression model with the adjusted predictors
+model_rf <- train(max_atk ~ class + stars + position,
+                  data = train,
+                  method = "rf",
+                  trControl = ctrl,
+                  tuneLength = 5)
+
+
+# Print Lasso model summary
+print(model_lasso)
+
+```
+## Model 4: Support vector machine(SVM)
+```{r}
+# # Train SVM model with the adjusted predictors
+model_svm <- train(max_atk ~ class + stars + position,
+                   data = train,
+                   method = "svmLinear",
+                   trControl = ctrl,
+                   tuneLength = 5)
+
+summary(model_svm$finalModel)
+```
+
+# 5. Model Selection
+
+We compare the performance of the models based on RMSE, and select the best-performing model.
+
+```{r}
+# Predict on test set
+pred_lm <- predict(model_lm, newdata = test)
+pred_lasso <- predict(model_lasso, newdata = test)
+pred_rf <- predict(model_rf, newdata = test)
+pred_svm <- predict(model_svm, newdata = test)
+
+# Calculate RMSE for each model
+rmse_lm <- sqrt(mean((test$max_atk - pred_lm)^2))
+rmse_lasso <- sqrt(mean((test$max_atk - pred_lasso)^2))
+rmse_rf <- sqrt(mean((test$max_atk - pred_rf)^2))
+rmse_svm <- sqrt(mean((test$max_atk - pred_svm)^2))
+
+# Print RMSE results
+print(paste("Linear Regression RMSE:", rmse_lm))
+print(paste("Lasso Regression RMSE:", rmse_lasso))
+print(paste("Random Forest RMSE:", rmse_rf))
+print(paste("SVM RMSE:", rmse_svm))
+```
+From the RMSE (root mean square error) values ​​of the four models, we can draw the following conclusions:
+
+- SVM (Support Vector Machine) has the lowest RMSE value of 161.06, which indicates that among this group of models, SVM has the best prediction performance and the smallest error.
+
+- Linear Regression and Lasso Regression have very close RMSE values of 165.04 and 165.08 respectively, which means that they perform similarly on this dataset and have similar prediction performance.
+
+- Random Forest unexpectedly performed worse than the linear models, potentially due to overfitting or the lack of significant non-linear relationships between the variables.
+
+Overall, SVM is the best model with the smallest error, while Random Forest has the largest error and performs the worst on this particular task.
+
+## 6. Testing Model
+Now let’s look at how the better performing linear model and the best performing SVM model perform on untrained data.
+
+
+### Linear Regression Coefficients
+```{r}
+# Generate predictions using the linear model
+pred_lm <- predict(model_lm, newdata = test)
+
+# Combine actual and predicted values
+results_lm <- data.frame(Actual = test$max_atk, Predicted = pred_lm)
+
+# Plot 1: Predicted vs Actual
+ggplot(results_lm, aes(x = Actual, y = Predicted)) +
+  geom_point(color = "blue") +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") +
+  labs(title = "Linear Model: Predicted vs Actual", x = "Actual Values", y = "Predicted Values") +
+  theme_minimal()
+```
+Many points fall below the red line, which indicates that the linear model underestimates the values ​​when the actual values ​​are higher. There are also some clear divergences, which means that the model's predictions are off from the actual values, especially at higher levels (around 750+).
+
+```{r}
+# Plot 2: Residuals Plot
+results_lm$Residuals <- results_lm$Actual - results_lm$Predicted
+ggplot(results_lm, aes(x = Predicted, y = Residuals)) +
+  geom_point(color = "purple") +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  labs(title = "Linear Model: Residuals Plot", x = "Predicted Values", y = "Residuals") +
+  theme_minimal()
+```
+The residual plot shows the difference between the predicted values and the actual values (residuals) over a range of predicted values. Ideally, the residuals should be randomly distributed around zero with no obvious pattern, indicating a good model fit. In our model, however, the residuals appear relatively random, but with larger residuals for predictions between 500 and 700. There is a concentration of positive residuals (underestimations) at the lower predicted values (around 400-500), with some negative residuals (overestimations) at higher predicted values (700+). This pattern suggests that the model has difficulty capturing the true values at the extremes.
+
+### SMV Predicted vs Actual Plot
+```{r}
+# Generate predictions
+pred_svm <- predict(model_svm, newdata = test)
+
+# Combine predicted and actual values
+results <- data.frame(Actual = test$max_atk, Predicted = pred_svm)
+# Plot 1: Predicted vs Actual
+ggplot(results, aes(x = Actual, y = Predicted)) +
+  geom_point(color = "blue") +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") +
+  labs(title = "SVM Model: Predicted vs Actual", x = "Actual Values", y = "Predicted Values") +
+  theme_minimal()
+```
+In this plot, you can see how well the SVM model's predictions align with the actual values. The red dashed line represents the perfect prediction (i.e., predicted = actual). Ideally, the blue points should lie on this line. From the plot, there is a visible spread, indicating that the SVM model has some prediction errors but captures the trend of the data.
+
+```{r}
+# Plot 2: Residuals Plot
+results$Residuals <- results$Actual - results$Predicted
+ggplot(results, aes(x = Predicted, y = Residuals)) +
+  geom_point(color = "purple") +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  labs(title = "SVM Model: Residuals Plot", x = "Predicted Values", y = "Residuals") +
+  theme_minimal()
+```
+The residuals plot displays the difference between the actual and predicted values. Points scattered around the red dashed line (which represents zero residuals) indicate how well the model is performing. There is some variance in the residuals, with larger deviations from zero at certain points. However, the residuals appear fairly random, which is a good sign that the model is not systematically biased.
+
+
+## Conclusion
+
+This analysis explored various machine learning models to predict the maximum attack power of Arknights operators based on features such as class, star rating, and position. The models tested included Linear Regression, Lasso Regression, Support Vector Machines (SVM), and Random Forest. Our goal was to identify the model that could most accurately predict operator performance, using Root Mean Squared Error (RMSE) as the primary evaluation metric.
+
+### Model Comparison
+The results showed that the Support Vector Machine (SVM) model performed the best, with the lowest RMSE of 161.06, making it the most accurate in capturing the relationships between the operator features and attack power. SVM models are particularly well-suited for handling non-linear relationships, which likely contributed to its superior performance.
+
+Both Linear Regression and Lasso Regression yielded similar RMSE values, around 165, indicating comparable predictive power. While these linear models captured general trends, they struggled to accurately predict operators with very high attack power, leading to underestimation in those cases. Despite their simplicity, these models offer valuable insights, particularly regarding the contribution of features like star rating and class to attack power. For example, higher star ratings positively influenced attack power, while classes such as Medics and Defenders had negative impacts, aligning with their intended roles in the game.
+
+Surprisingly, the Random Forest model performed the worst, with the highest RMSE of 171.77. Random Forests are generally effective at handling non-linear data and interactions between variables, but in this case, the model underperformed. This could be due to several factors, such as insufficient hyperparameter tuning, overfitting to the training data, or an inability to capture the underlying patterns of the features. The result suggests that Random Forest may not have been the best fit for this specific prediction task, possibly due to the relatively small number of features or complexity of the relationships between them.
+
+### Insights from the Linear Model
+Despite not being the most accurate model, the Linear Regression model provided important interpretive insights. The coefficient analysis highlighted the significant impact of star ratings on attack power, where higher star ratings were associated with higher attack values. In contrast, classes such as Defenders and Medics, which are typically designed for defense and healing, contributed negatively to predicted attack power. The effect of operator position was also evident, with ranged positions contributing less to attack power compared to melee roles.
+
+However, the Predicted vs Actual and Residuals Plot for the linear model highlighted some of its weaknesses. The linear model underestimated operators with higher attack power, especially for values exceeding 700. The residuals plot further showed a pattern of non-random errors, suggesting that the linear model struggled to capture non-linear relationships in the data.
+
+### SVM as the Best Model
+The SVM model's superior performance can be attributed to its ability to map the data into higher-dimensional space using a kernel trick, allowing it to handle more complex relationships between the features and the target variable. This flexibility helped SVM outperform the other models in predicting attack power with greater accuracy.
+
+### Future Directions
+Although the SVM model was the most accurate, there are still opportunities to improve predictive performance. Future enhancements could include incorporating additional features like operator skills, traits, or synergies between operators to provide a more holistic view of attack power. Additionally, more advanced machine learning techniques such as deep learning or ensemble models like Gradient Boosting Machines (GBM) could be explored to improve accuracy further.
+
+### Final Conclusion
+In conclusion, the SVM model demonstrated the best performance in predicting the maximum attack power of Arknights operators, outperforming linear models and Random Forest. While the linear models offered useful interpretive insights, they lacked the accuracy of non-linear approaches like SVM. The Random Forest model, unexpectedly, performed the worst, indicating that it might not be well-suited for this particular dataset or task. Nevertheless, the overall results provide a solid foundation for further model refinement and feature exploration in future work.
+```{r, echo=FALSE, out.width="20%"}
+knitr::include_graphics("bye.gif")
+```
+
+## Source
+This data was taken from the Kaggle data set, [Arknights Operators](https://www.kaggle.com/datasets/victorsoeiro/arknights-operators/data) and it was scraped from from [Arknights Fandom Wiki](https://arknights.fandom.com/wiki/Arknights_Wiki) by user Victor Soeiro.

@@ -1,0 +1,78 @@
+---
+title: "DATA MEMO"
+output:
+  html_document: default
+  pdf_document: default
+date: "2024-08-19"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+---
+title: "Data Memo for Arknights Operators Dataset"
+author: "Chuyu Zhuang"
+date: "`r Sys.Date()`"
+output: html_document  # 或 pdf_document
+---
+
+## Overview of the Dataset
+
+### Dataset Description
+
+The dataset I have chosen for my final project is titled "Arknights Operators," sourced from Kaggle. It includes detailed information about the operators (characters) in the mobile game "Arknights," including their stats, skills, and other attributes.
+
+### Source and Access
+
+The dataset is publicly available on Kaggle and can be accessed via [this link](https://www.kaggle.com/datasets/victorsoeiro/arknights-operators/data). I downloaded the dataset directly from the Kaggle website.
+
+### Size and Composition
+
+- **Observations**: The dataset contains a comprehensive list of operators, with 225 rows, each representing an individual operator.
+- **Predictors**: The dataset has about 63 columns, including numerical variables (such as attack, defense, HP) and categorical variables (such as operator class, rarity, gender, etc.).
+- **Variable Types**: The variables in the dataset include numerical values (such as stats) and categorical data (such as operator class and rarity).
+
+### Missing Data
+
+- **Missing Data**: There are some missing values in certain columns, particularly in some of the more advanced stats fields. Approximately 5-10% of the data may be missing in these columns. 
+- **Handling Missing Data**: I plan to explore multiple methods for handling the missing data, such as imputation with median values or more advanced techniques depending on the extent of the missingness.
+
+## Research Questions
+
+### Prediction Goals
+
+The main goal of this project is to predict the future statistics of new operators based on existing data. I will build a corresponding prediction model by linking each operator's rarity (i.e. star), class and branch with their corresponding defense, hp, and maximum attack.
+
+### Response/Outcome Variables
+
+The response variables will be the key stats for the operators: attack, defense, HP, etc. These are continuous variables, and the goal is to accurately predict their values for new operators.
+
+### Analytical Approach
+
+The main goal of this project is to predict the future statistics of new operators based on existing data. I will build a corresponding prediction model by linking each operator's rarity (i.e. star), class and branch with their corresponding defense, hp, maximum attack, etc.
+
+### Important Predictors
+
+- **Key Predictors**: I anticipate that predictors such as the operator class, rarity, and initial stats will be particularly useful in predicting the future stats of new operators.
+- **Modeling Goals**: The goal of my model is both predictive (to accurately forecast future stats) and inferential (to understand which factors most strongly influence operator stats).
+
+## Proposed Project Timeline
+
+- **Data Loading and Cleaning**: Complete by Week 2.
+- **Exploratory Data Analysis (EDA)**: Start in Week 2 and complete by Week 3.
+- **Model Building and Evaluation**: Begin in Week 4 and finish by Week 6.
+- **Finalizing the Project**: Week 7 to Week 8, including model refinement and preparation of the final report.
+
+
+
+## Dataset Show
+
+```{r}
+# Example of loading the dataset
+library(readr)
+data <- read_csv("data.csv")
+
+# Display the first few rows of the dataset
+head(data)
+```

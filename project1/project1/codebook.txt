@@ -1,0 +1,5 @@
+name 		character name
+class 		character category (such as guard, sniper, etc.)
+stars 		character star rating
+position	The character's attack type (ranged or melee)
+max_atk 	maximum attack power
