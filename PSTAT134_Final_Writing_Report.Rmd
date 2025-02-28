@@ -1,0 +1,69 @@
+---
+title: "PSTAT134 Final Report"
+author: "Chuyu Zhuang, Edwin Lam, Husni Abdel-Haq"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+# Introduction
+
+The rise in housing prices has been one of the hottest conversations in modern American society, with many young Americans believing home ownership exists only as a dream, rather than their future. While the causes of this issue are many and complicated, our group is attempting to learn whether or not the housing market can be accurately captured using data and visuals. 
+
+Our project seeks to predict housing prices using a hybrid model that factors structured numeric and categorical data (number of bedrooms and bathrooms, square footage of the house and lot, location, etc.) along with image data (pictures of the houses from street view). Our data was obtained from Kaggle (https://www.kaggle.com/datasets/ted8080/house-prices-and-images-socal) and contains real house sales taken from Zillow over the past 20 years. Each row in our initial CSV contains an image ID corresponding to an image in our folder, the address of the house, the number of bedrooms and bathrooms, the square footage of the lot, and finally the price. 
+
+
+# Methods
+
+We implemented a Convolutional Neural Network (CNN) to analyze the provided image data and combined it with structured data such as square footage and the number of bedrooms and bathrooms. To facilitate this, we used several Python libraries, including Pandas for data manipulation, NumPy for numerical operations, TensorFlow for building and training deep learning models, and Scikit-learn for data splitting and feature scaling. These tools enabled us to preprocess and integrate the two distinct data types effectively.  
+
+The structured data was normalized to a 0-1 range using MinMaxScaler, which improves stability during training and ensures consistency. Additionally, the target variable, house price, was log-transformed to address skewness. This preprocessing step was critical to ensuring that the structured data contributed meaningfully to the hybrid model. For the image data, we created a preprocessing function that resized all images to 128x128 pixels and normalized pixel values to fall within the 0-1 range. Normalizing the pixel values improves the stability of the CNN during training. These preprocessed images were then converted into NumPy arrays. Once preprocessing was complete, we combined the structured and image data into a unified dataset. This dataset was then split into training and testing subsets using an 80/20 split.   
+
+To model the data, we first built a CNN to extract features from the image data. This model consisted of multiple convolutional and pooling layers designed to identify patterns in the images. Simultaneously, we developed a fully connected network to process the structured data. These two models were then combined into a hybrid model by merging their outputs. The combined features were passed through a final dense layer to predict house prices. By integrating structured and unstructured data, our hybrid model leveraged the strengths of both data types, providing a comprehensive and accurate approach to house price prediction. We then trained our data using 10 epochs and a batch size of 32. 
+
+
+# Results and Analysis
+
+## Training and Validation Loss
+
+![training validation loss](C:/Users/zhuan/Downloads/data/house_price_prediction_files/figure-html/cell-9-output-2.png){width=50%}
+
+The training loss and validation loss drop rapidly in the first few rounds, indicating that the model can quickly learn the patterns in the data.
+
+In the later stage of training (after 5 rounds), the training loss and validation loss tend to be stable and close to each other, indicating that the model has no obvious overfitting or underfitting problems.
+
+## Predicted vs Actual Prices
+
+![predicted vs actual](C:/Users/zhuan/Downloads/data/house_price_prediction_files/figure-html/cell-10-output-1.png){width=50%}
+
+The current model can capture the overall trend of housing prices, and the predicted values are roughly distributed near the actual values, which has a certain reference value. However, the prediction deviation of high-priced houses is large, the error distribution is wide, and the model still needs to be optimized when dealing with extreme values.
+
+
+
+## Distribution of Prediction Errors
+
+![distribution of errors](C:/Users/zhuan/Downloads/data/house_price_prediction_files/figure-html/cell-11-output-2.png){width=50%}
+
+The majority of errors concentrated around zero. This indicates that the predictions are relatively close to the actual values, though some outliers exist.
+  
+  
+## Feature Importance  
+
+![Feature Importance]("C:\Users\zhuan\Downloads\data\house_price_prediction_files\figure-html\cell-12-output-1.png"){width=50%}
+The feature importance analysis shows the influence of each structural feature in predicting house prices. Among them, the size of the house is the most important feature and contributes the most to the prediction of house prices. The number of bedrooms and bathrooms comes second, while the size of the plot has a relatively small impact on the house price. This shows that the model mainly relies on the core attributes of the house when predicting house prices.  
+
+# Conclusion
+
+In this project, we implemented a hybrid modeling approach that integrates structured data and image data to predict house prices. By combining a Convolutional Neural Network (CNN) to process image data with a fully connected network for structured data, we leveraged the strengths of both data types. 
+
+However, despite this effort, the model's performance revealed significant limitations. The low R-squared(0.37) value indicates that the model struggles to explain much of the variance in house prices, highlighting its limited predictive power. While the integration of structured features, such as square footage and the number of bedrooms, with visual insights from house images provides a more comprehensive approach to house pricing dynamics, the results suggest that this hybrid model was not as effective as anticipated. These findings emphasize the need for further optimization. Future work could explore more sophisticated CNN architectures, improved feature engineering, or the incorporation of additional data types, such as textual property descriptions or geographical information. 
+
+
+
+
+
+
+
+
+
+
+

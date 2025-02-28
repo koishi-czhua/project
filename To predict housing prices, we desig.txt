@@ -1,0 +1,12 @@
+To predict housing prices, we designed a hybrid model combining structured and image data. The whole approach consists of three key steps:
+
+First, image classification.
+We processed street view images of each house through convolutional neural networks, or CNNs. CNNs were built using tools such as Pandas, NumPy, TensorFlow, and Scikit-learn. The goal of this part is to extract features from the images and provide visual information input to the model.
+
+Next, the structured data is processed.
+We cleaned, log-transformed, and normalized the house attribute information in the dataset. This structured data was input into a fully connected network to extract the relationship between numerical features.
+
+Finally, the hybrid model is designed.
+We fused the outputs of the CNN and the fully connected network and output the final prediction results through a dense layer. The model was trained using an 80/20 data split and ran for 10 epochs on the training set with a batch size of 32.
+
+Finally, we can see in the picture that the training loss of our model training decreases rapidly and stabilizes as the epoch increases, indicating that the model has learned features on the training data. The validation loss also decreases in the early stage and then stabilizes. This shows that our model can be generalized to the test data set to a certain extent without obvious overfitting. "
